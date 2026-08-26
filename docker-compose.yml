@@ -1,0 +1,51 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://therapy:${POSTGRES_PASSWORD}@db:5432/therapy
+      REDIS_URL: redis://redis:6379/0
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks: [therapy]
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: therapy
+      POSTGRES_USER: therapy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: [therapy_db:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U therapy -d therapy"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [therapy]
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server","--appendonly","yes"]
+    volumes: [therapy_redis:/data]
+    networks: [therapy]
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80","443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+    networks: [therapy]
+networks:
+  therapy:
+volumes:
+  therapy_db:
+  therapy_redis:
+  caddy_data:
+  caddy_config:
