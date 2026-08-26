@@ -1,0 +1,1 @@
+fetch('/api/bootstrap').then(r=>r.json()).then(x=>console.info('Therapy core',x)).catch(()=>{});
